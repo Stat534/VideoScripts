@@ -1,0 +1,81 @@
+---
+title: "Stan Setup"
+format: gfm
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+### Stan / RStan Installation
+
+Unlike the `stan_glm()` function that we've recently seen, writing stan code from scratch requires a C compiler. (The `stan_glm()` functions are pre-compiled).
+
+Thus we need to follow steps to update the compiler before stan will work. First try the following code and if you are lucky you won't need to do any additional installations.
+
+```{r, results = 'hide'}
+library(rstan)
+example(stan_model, package = "rstan", run.dontrun = TRUE)
+
+```
+
+If not, [Start Here](https://mc-stan.org/rstan/) for guidance on how to install everything necessary to run stan code.
+
+---
+
+The [https://mc-stan.org/docs/stan-users-guide/](Stan user guide) has nice examples and will be a helpful resource moving forward.
+
+---
+
+### Simulate data
+
+To show how Stan can be combine with R data, consider the simple linear regression example with simulated data.
+
+```{r}
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+library(tidyverse)
+n <- 100
+beta <- c(1,2)
+
+X <- cbind(rep(1,n), rnorm(n))
+sigma <- 1
+
+y <- rnorm(n, X%*%beta, sigma)
+
+tibble(x = X[,2], y = y) |>
+  ggplot(aes(x =x, y =y)) +
+  geom_point() +
+  geom_smooth(formula = 'y~x', method = 'lm') +
+  theme_bw()
+```
+
+
+
+```{stan}
+data {
+  int<lower=0> N;
+  vector[N] x;
+  vector[N] y;
+}
+parameters {
+  real beta0;
+  real beta;
+  real<lower=0> sigma;
+}
+model {
+  y ~ normal(beta0 + beta * x, sigma);
+}
+
+```
+
+
+```{r, results = 'hide'}
+fit <- stan(file = 'regression.stan', 
+            data = list(y = y, x = X[,2], N = n))
+
+```
+
+```{r}
+print(fit)
+```
+
